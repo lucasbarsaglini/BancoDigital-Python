@@ -1,57 +1,86 @@
-class BancoDigital:
+from abc import ABC, abstractmethod
+from datetime import date
+
+
+class Transacao(ABC):
+    @abstractmethod
+    def registrar(self, conta):
+        pass
+
+
+class Deposito(Transacao):
+    def __init__(self, valor):
+        self.valor = valor
+
+    def registrar(self, conta):
+        conta.depositar(self.valor)
+
+
+class Saque(Transacao):
+    def __init__(self, valor):
+        self.valor = valor
+
+    def registrar(self, conta):
+        conta.sacar(self.valor)
+
+
+class Historico:
     def __init__(self):
-        self.saldo = 0.0
-        self.movimentacoes = []
-        self.saques_realizados = 0
-        self.limite_saques_diarios = 3
-        self.limite_saque_valor = 500.0
+        self.transacoes = []
 
-    def depositar(self, valor):
-        """Realiza um depósito na conta."""
-        self.saldo += valor
-        self.movimentacoes.append(f"Depósito: R$ {valor:.2f}")
-        return f"Depósito de R$ {valor:.2f} realizado com sucesso."
+    def adicionar_transacao(self, transacao):
+        self.transacoes.append(transacao)
 
-    def pode_sacar(self, valor):
-        """Verifica se o saque pode ser realizado com base nas condições de saldo e limite."""
-        if self.saques_realizados >= self.limite_saques_diarios:
-            return False, "Limite de saques diários atingido."
-        if valor > self.limite_saque_valor:
-            return False, f"Saque excede o limite de R$ {self.limite_saque_valor:.2f} por operação."
-        if valor > self.saldo:
-            return False, "Saldo insuficiente para realizar o saque."
-        return True, ""
+
+class Conta:
+    def __init__(self, saldo, numero, agencia, cliente):
+        self.saldo = saldo
+        self.numero = numero
+        self.agencia = agencia
+        self.cliente = cliente
+        self.historico = Historico()
+
+    def saldo(self):
+        return self.saldo
+
+    def nova_conta(self, cliente, numero, agencia):
+        return Conta(0.0, numero, agencia, cliente)
 
     def sacar(self, valor):
-        """Realiza o saque se todas as condições forem atendidas."""
-        permitido, mensagem = self.pode_sacar(valor)
-        if not permitido:
-            return mensagem
+        if self.saldo >= valor:
+            self.saldo -= valor
+            self.historico.adicionar_transacao(Saque(valor))
+            return True
+        return False
 
-        self.saldo -= valor
-        self.movimentacoes.append(f"Saque: R$ {valor:.2f}")
-        self.saques_realizados += 1
-        return f"Saque de R$ {valor:.2f} realizado com sucesso."
-
-    def extrato(self):
-        """Exibe o extrato de todas as movimentações realizadas na conta."""
-        if not self.movimentacoes:
-            return "Não foram realizadas movimentações."
-        extrato = "\n".join(self.movimentacoes)
-        extrato += f"\nSaldo atual: R$ {self.saldo:.2f}"
-        return extrato
+    def depositar(self, valor):
+        self.saldo += valor
+        self.historico.adicionar_transacao(Deposito(valor))
+        return True
 
 
-# Funções gerais para operações
+class ContaCorrente(Conta):
+    def __init__(self, saldo, numero, agencia, cliente, limite, limite_saques):
+        super().__init__(saldo, numero, agencia, cliente)
+        self.limite = limite
+        self.limite_saques = limite_saques
 
-def realizar_deposito(banco, valor):
-    """Função para realizar um depósito."""
-    return banco.depositar(valor)
 
-def realizar_saque(banco, valor):
-    """Função para realizar um saque."""
-    return banco.sacar(valor)
+class Cliente:
+    def __init__(self, endereco):
+        self.endereco = endereco
+        self.contas = []
 
-def exibir_extrato(banco):
-    """Função para exibir o extrato."""
-    return banco.extrato()
+    def realizar_transacao(self, conta, transacao):
+        transacao.registrar(conta)
+
+    def adicionar_conta(self, conta):
+        self.contas.append(conta)
+
+
+class PessoaFisica(Cliente):
+    def __init__(self, cpf, nome, data_nascimento, endereco):
+        super().__init__(endereco)
+        self.cpf = cpf
+        self.nome = nome
+        self.data_nascimento = data_nascimento
